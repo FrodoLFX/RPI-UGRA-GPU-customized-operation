@@ -1,23 +1,24 @@
 # RPI‑UGRA – GPU Customized Operation
 
-This repository tracks my undergraduate research journey into **GPU‑accelerated computation** and **custom CUDA operations**.  It began with simple CUDA C/C++ programs and has progressed into exploring higher‑level libraries such as NVIDIA CUTLASS.  The goal is to move from **basic CUDA programming concepts** to **implementing custom GPU kernels** that can later be integrated into higher‑level frameworks (e.g., PyTorch custom ops, CUTLASS‑style kernels, etc.) and eventually contribute novel operations.
+This repository tracks my undergraduate research journey into **GPU‑accelerated computation** and **custom CUDA operations**. It began with simple CUDA C/C++ programs and progressed into exploring higher‑level libraries such as **NVIDIA CUTLASS**. **Now it also includes a full PyTorch learning track** that mirrors the same easy→hard progression and prepares for framework‑level research (custom ops, deployment, benchmarking).
 
 ---
 
 ## Repository Structure
 
-> (Folder and filenames here assume the current layout with CUDA and CUTLASS demos; adjust if you rename things.)
+> (Folder and filenames assume the current layout with CUDA, CUTLASS, and PyTorch demos; adjust if you rename things.)
 
 - `cuda_demos/` – step‑by‑step CUDA learning demos (`demo01_*.cpp` … `demo10_*.cpp`)
-- `cutlass_demos/` – C++ demos illustrating how to use the NVIDIA **CUTLASS** library.  These build upon the CUDA basics to show how matrix multiply‑accumulate and related operations are implemented at a higher level.
-- (future) `custom_ops/` – more advanced, research‑oriented custom kernels
+- `cutlass_demos/` – C++ demos illustrating how to use **CUTLASS** (GEMM FP32/FP16/INT8, grouped GEMM, fused epilogues, conv2d, etc.)
+- `pytorch_demos/` – **NEW**: ten PyTorch demos from tensors & autograd to CNNs, transfer learning, custom autograd, and TorchScript
+- (future) `custom_ops/` – more advanced, research‑oriented custom kernels and PyTorch bindings
 - (future) `notes/` – PDF/markdown notes, experiment logs, and design sketches
 
 ---
 
 ## Learning Path & CUDA Demos
 
-The main CUDA learning track lives in `cuda_demos/`.  Each demo is intentionally small and focused on **one idea at a time**.
+The main CUDA learning track lives in `cuda_demos/`. Each demo is intentionally small and focused on **one idea at a time**.
 
 | Demo | File | Concept |
 | --- | --- | --- |
@@ -34,124 +35,127 @@ The main CUDA learning track lives in `cuda_demos/`.  Each demo is intentionally
 
 You can read the demos in order to get a **narrative** of CUDA:
 
-1. Start from “hello world” and a single simple kernel.
-2. Learn how threads and blocks map to data structures (vectors, matrices).
-3. Explore the **memory hierarchy** (global, shared, pinned, unified, constant).
-4. Introduce **asynchrony** and **streams** to overlap transfers with compute.
+1. Start from “hello world” and a single simple kernel.  
+2. Learn how threads and blocks map to data structures (vectors, matrices).  
+3. Explore the **memory hierarchy** (global, shared, pinned, unified, constant).  
+4. Introduce **asynchrony** and **streams** to overlap transfers with compute.  
 5. Finish with **atomic operations** and reductions, which appear in many real workloads.
 
 ---
 
 ## CUTLASS Learning Demos
 
-Parallel to the CUDA basics, I began exploring the **CUTLASS (CUDA Templates for Linear Algebra Subroutines)** library.  CUTLASS decomposes matrix multiplication into reusable components and supports mixed‑precision, fused epilogues, and advanced scheduling【228626371764721†L50-L66】.  The `cutlass_demos/` directory contains a series of ten C++ programs that demonstrate progressively more sophisticated uses of CUTLASS.  These demos are written in plain C++ with CUDA extensions and assume that CUTLASS is installed on your system.
+Parallel to the CUDA basics, I began exploring the **CUTLASS (CUDA Templates for Linear Algebra Subroutines)** library. CUTLASS decomposes matrix multiplication into reusable components and supports mixed‑precision, fused epilogues, and advanced scheduling. The `cutlass_demos/` directory contains a series of ten C++ programs that demonstrate progressively more sophisticated uses of CUTLASS.
 
 | Demo | File | Concept |
 | --- | --- | --- |
 | 1 | `demo01_cutlass_gemm_fp32.cpp` | Basic FP32 GEMM using CUTLASS |
-| 2 | `demo02_cutlass_gemm_fp16_tensor_core.cpp` | Half‑precision GEMM on Tensor Cores (FP16×FP16→FP32) |
+| 2 | `demo02_cutlass_gemm_fp16_tensor_core.cpp` | Half‑precision GEMM on Tensor Cores (FP16×FP16→FP32) |
 | 3 | `demo03_cutlass_gemm_int8.cpp` | Quantized INT8 GEMM with INT32 accumulation |
-| 4 | `demo04_cutlass_batched_gemm.cpp` | Batched GEMM – executing multiple matrix multiplications in a loop |
-| 5 | `demo05_cutlass_conv2d.cpp` | 2‑D convolution via CUTLASS’s implicit GEMM convolution |
-| 6 | `demo06_cutlass_fused_bias_relu.cpp` | Fusing bias addition and ReLU activation into the GEMM epilogue |
-| 7 | `demo07_cutlass_complex_gemm.cpp` | Complex number GEMM (`std::complex<float>`) |
-| 8 | `demo08_cutlass_async_gemm.cpp` | GEMM using CUTLASS 3.x kernels with asynchronous `cp.async` copies |
-| 9 | `demo09_cutlass_grouped_gemm.cpp` | Grouped GEMM for executing multiple problems of different sizes in one launch |
-| 10 | `demo10_cutlass_linear_softmax.cpp` | Linear layer with bias and a row‑wise softmax function |
-
-To build the CUTLASS demos, configure your project similarly to the CUDA demos but link against the CUTLASS headers and ensure your `CUDACXX` environment variable points to `nvcc`.  Each demo in this directory illustrates a new feature and provides comments explaining the key concepts.
+| 4 | `demo04_cutlass_batched_gemm.cpp` | Batched GEMM – multiple matrix multiplies |
+| 5 | `demo05_cutlass_conv2d.cpp` | 2‑D convolution via implicit GEMM |
+| 6 | `demo06_cutlass_fused_bias_relu.cpp` | GEMM epilogue fused bias + ReLU |
+| 7 | `demo07_cutlass_complex_gemm.cpp` | Complex number GEMM |
+| 8 | `demo08_cutlass_async_gemm.cpp` | Async mainloop (e.g., `cp.async`) |
+| 9 | `demo09_cutlass_grouped_gemm.cpp` | Grouped GEMM (varying sizes) |
+| 10 | `demo10_cutlass_linear_softmax.cpp` | Linear layer with row‑wise softmax |
 
 ---
 
-## How to Build & Run (Visual Studio + CUDA/CUTLASS on Windows)
+## NEW: PyTorch Learning Demos
 
-These demos are written as `.cpp` files but use CUDA extensions (`__global__`, `<<< >>>`, etc.), so **they must be compiled as CUDA C/C++**, not plain MSVC C++.  CUTLASS is header‑only and requires C++17.
+Ten runnable Python scripts live in `pytorch_demos/` and mirror an **easy → hard** progression. Each file is self‑contained and commented to show the learning process.
 
-1. Install **NVIDIA CUDA Toolkit** (see links in the “Learning Resources” section) and clone the [CUTLASS repository](https://github.com/NVIDIA/cutlass) into a location referenced by your include path.
-2. In Visual Studio:
-   1. `File → New → Project → CUDA 12.x Runtime` (or similar template).
-   2. Add the `cuda_demos/*.cpp` and `cutlass_demos/*.cpp` files to the project.
-   3. Set each file’s **Item Type** to **`CUDA C/C++`** under *Properties → General*.  Choose a demo as the **Startup Item**.
-3. Ensure your project’s **Additional Include Directories** include the path to the CUTLASS headers (e.g., `cutlass/include`).
-4. Build and run.  For example, running `demo02_cutlass_gemm_fp16_tensor_core.cpp` should print the first element of the result matrix and demonstrate the speed of Tensor Cores.
+| # | File | Title & Concept |
+|---|---|---|
+| 1 | `demo01_Pytorch_Tensor_Basics.py` | **Tensor Basics** – creation, dtype/device, view/reshape, broadcasting, indexing |
+| 2 | `demo02_Pytorch_Autograd_Essentials.py` | **Autograd Essentials** – `requires_grad`, `backward()`, gradient tape introspection |
+| 3 | `demo03_Pytorch_Linear_Regression_From_Scratch.py` | **Linear Regression from Scratch** – manual training loop with MSE + SGD |
+| 4 | `demo04_Pytorch_Simple_Neural_Networks.py` | **MLP Classifier** – `nn.Module`, layers, activations, training/val loop |
+| 5 | `demo05_Pytorch_Data_Handling.py` | **Data Handling** – `Dataset`, `DataLoader`, transforms, augmentation |
+| 6 | `demo06_Pytorch_GPU_Acceleration.py` | **GPU Acceleration** – `.to(device)`, timing CPU vs GPU, reproducibility |
+| 7 | `demo07_Pytorch_Model_Persistence.py` | **Model Persistence** – `state_dict` save/load, resume training, checkpoints |
+| 8 | `demo08_Pytorch_Image_Classification.py` | **CNN on MNIST/CIFAR** – small ConvNet, accuracy tracking, confusion matrix |
+| 9 | `demo09_Pytorch_Transfer_Learning.py` | **Transfer Learning** – fine‑tune ResNet‑18 from `torchvision.models` |
+| 10 | `demo10_Pytorch_Advanced_Techniques.py` | **Advanced** – custom autograd function + TorchScript export (`torch.jit.trace/script`) |
 
-If you prefer CMake, this repo can also be turned into a CUDA + CUTLASS CMake project (`project(... LANGUAGES CXX CUDA)`).  See the `examples/` in the CUTLASS repository for inspiration.
+### PyTorch Environment & Running
+
+1. **Create env (conda or venv)**
+   ```bash
+   conda create -n ugra-gpu python=3.10 -y
+   conda activate ugra-gpu
+   ```
+2. **Install PyTorch & extras** (choose the correct CUDA build from the PyTorch website if using GPU):
+   ```bash
+   pip install torch torchvision torchaudio   # CPU or CUDA build as needed
+   pip install matplotlib scikit-learn tqdm
+   ```
+3. **Run a demo**
+   ```bash
+   python pytorch_demos/demo01_Pytorch_Tensor_Basics.py
+   ```
+4. **GPU check**
+   ```python
+   import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU")
+   ```
+
+> Note: `demo09_Pytorch_Transfer_Learning.py` may download pretrained weights on first run (internet required).
 
 ---
 
 ## Conceptual Roadmap / Process
 
-This repo is meant to document a **learning + research pipeline**, not just a pile of code.
+This repo documents a **learning + research pipeline**, from low‑level kernels to high‑level frameworks.
 
-### Phase 1 – Get Comfortable with CUDA Basics
-- Understand how a **kernel launch** maps to hardware:
-  - Threads, blocks, and grids.
-  - Using `blockIdx`, `threadIdx`, `blockDim` to compute global indices.
-- Practice with simple compute patterns:
-  - Elementwise ops (vector add, scaling).
-  - 2‑D indexing (matrix add).
+### Phase 1 – CUDA Basics
+- Kernels, indexing, grids/blocks; vector & matrix ops.
 
-### Phase 2 – Respect the GPU Memory Hierarchy
-- Explore **global memory** vs **shared memory**:
-  - Naive matmul (`demo04`) vs shared‑memory tiled matmul (`demo05`).
-- Experiment with host–device transfers:
-  - Compare pageable vs **pinned host memory** in `demo06_pinned_memory.cpp`.
-- Get a feel for **latency hiding**:
-  - Use **streams** (`demo07`) to overlap copies and compute.
-  - See how large problem sizes benefit more from asynchrony.
+### Phase 2 – Memory Hierarchy & Asynchrony
+- Global/shared/pinned/unified memory; streams & overlap.
 
 ### Phase 3 – Advanced CUDA Features
-- **Constant memory** (`demo08`) for small read‑only parameters shared by all threads.
-- **Unified (managed) memory** (`demo09`) to simplify allocations and gradually learn about page migration and prefetching.
-- **Atomic operations** & reductions (`demo10`):
-  - Build intuition for race conditions and when atomics are necessary.
-  - Use shared memory for intra‑block reduction + `atomicAdd()` for global accumulation.
+- Constant memory; reductions/atomics; profiling.
 
 ### Phase 4 – Towards Custom GPU Operations
-Once the core CUDA concepts are solid:
+- Design problem‑specific kernels; fuse elementwise ops; prepare to wrap as custom ops.
 
-- Start designing **problem‑specific kernels**:
-  - E.g., custom stencil operations, fused elementwise ops, simple convolutions, etc.
-- Integrate with **host libraries / frameworks**:
-  - Wrap kernels in C++ APIs that can later be called from Python or integrated into frameworks (e.g., PyTorch custom ops).
-- Benchmark and profile:
-  - Use Nsight tools and CUDA events to measure kernel runtime, occupancy, and bandwidth utilization.
+### Phase 5 – High‑Level Libraries (CUTLASS)
+- Decompose GEMM; batched/grouped GEMM; fused epilogues; conv2d via implicit GEMM.
 
-### Phase 5 – High‑Level Libraries and CUTLASS
-After understanding low‑level CUDA, the next phase explores libraries built on top of CUDA that encapsulate best practices.
+### **Phase 6 – PyTorch (NEW)**
+- Tensors → autograd → modules → data → GPU → CNN/transfer learning → custom autograd → TorchScript.  
+- Bridge to **custom ops**: prototype in PyTorch first, then replace hot paths with CUDA/CUTLASS implementations.
 
-- Learn about **CUTLASS** and how it decomposes GEMM into configurable components【228626371764721†L50-L66】.
-- Implement GEMM, convolution, and fused operations using CUTLASS.
-- Compare CUTLASS kernels against your own implementations to understand the trade‑offs (e.g., tile sizes, Tensor Cores).
-- Prototype deep‑learning layers (e.g., linear + softmax) to see how CUTLASS fits into larger GPU workloads.
+---
+
+## How to Build / Run (summary)
+
+- **CUDA/CUTLASS**: Visual Studio CUDA Runtime project or CMake (`project(... LANGUAGES CXX CUDA)`), include CUTLASS headers, compile `.cpp` as CUDA C/C++.
+- **PyTorch**: standard Python environment; install `torch/torchvision/torchaudio`; run the scripts directly.
 
 ---
 
 ## Learning Resources
 
-These are core references used while building the demos and understanding the hardware/software stack:
-
-- **Basics on NVIDIA GPU Hardware Architecture – NASA HECC**  – A very clear introduction to NVIDIA GPU hardware, including the GPU vs CPU mental model, streaming multiprocessors, tensor cores, thread/block/grid structures and the memory hierarchy.  <https://www.nas.nasa.gov/hecc/support/kb/basics-on-nvidia-gpu-hardware-architecture_704.html>
-- **NVIDIA CUDA Toolkit (official)** – The official toolkit and documentation: compiler (`nvcc`), core libraries (cuBLAS, cuDNN, etc.), debugging & profiling tools, and the reference documentation for CUDA C/C++.  Use this for installation, version checks and reading the Programming Guide and Best Practices Guide.  <https://developer.nvidia.com/cuda-toolkit>
-- **CUTLASS technical blog** – Introduces CUTLASS, its decomposition of GEMM and support for mixed precision.  It explains that CUTLASS can fuse element‑wise operations (e.g., activation functions) into GEMM【228626371764721†L50-L66】 and provides example code for bias + ReLU epilogues【228626371764721†L687-L776】.  <https://developer.nvidia.com/blog/cutlass-linear-algebra-cuda/>
-- (future) Additional links:
-  - CUDA Programming Guide sections or blog posts that were useful.
-  - Papers or notes related to the custom operation you end up implementing.
+- NVIDIA CUDA Toolkit (installation, `nvcc`, Nsight tools) – <https://developer.nvidia.com/cuda-toolkit>  
+- CUTLASS on GitHub – <https://github.com/NVIDIA/cutlass>  
+- PyTorch Tutorials – <https://pytorch.org/tutorials/>  
 
 ---
 
 ## Future Work / TODO
 
-- [x] Complete the initial CUDA learning demos (`demo01`–`demo10`).
-- [x] Create a set of **CUTLASS demos** showcasing GEMM, convolution, fused epilogues, complex numbers, grouped problems and a simple neural‑network layer.
-- [ ] Add a `CMakeLists.txt` for easy cross‑platform builds of both CUDA and CUTLASS demos.
-- [ ] Add profiling scripts / instructions (Nsight Systems / Nsight Compute) to compare naive CUDA kernels with CUTLASS kernels.
-- [ ] Implement the first “real” custom op kernel (e.g., fused activation, small matmul, or custom reduction) and document the design decisions.
-- [ ] Connect kernels to a higher‑level framework (e.g., PyTorch custom op) and benchmark end‑to‑end performance.
-- [ ] Expand the notes directory with experiment logs and design sketches.
+- [x] Complete CUDA learning demos (`demo01`–`demo10`).
+- [x] Create **CUTLASS** demo set (GEMM/conv/fused epilogues/grouped).
+- [x] Add **PyTorch** demo set (tensors → TorchScript) with clear progression.
+- [ ] Add `CMakeLists.txt` for CUDA/CUTLASS; simple `Makefile` for Linux.
+- [ ] Benchmark: compare CUDA vs CUTLASS vs PyTorch on identical shapes (Nsight + `torch.utils.benchmark`).
+- [ ] First end‑to‑end custom op: PyTorch module calling a bespoke CUDA/CUTLASS kernel.
+- [ ] Expand `notes/` with experiment logs and design sketches.
 
 ---
 
 ## License
 
-This project is currently for **research and educational purposes** as part of an undergraduate research project at RPI.  Choose a license (e.g., MIT) once you are ready to share code more broadly.
+This project is for **research and educational** purposes as part of an undergraduate research project at RPI. Choose a license (e.g., MIT) once ready to share more broadly.
