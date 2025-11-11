@@ -24,7 +24,7 @@
 
 ---
 
-## 2) CUDA essentials (stuff you use every time)
+## 2) CUDA essentials 
 
 - **Thread indexing**: `blockIdx`, `threadIdx`, grid‑stride loops.
 - **Coalesced access**: neighbors read neighbors. Lay out tensors accordingly.
@@ -43,7 +43,7 @@ __global__ void scale_kernel(float* y, const float* x, float a, int64_t n) {
 
 ---
 
-## 3) Roofline‑lite (know your bottleneck)
+## 3) Roofline‑lite (know bottleneck)
 
 - **Arithmetic intensity** = FLOPs / Bytes moved (from global memory).
 - Low intensity ⇒ bandwidth‑bound → **layout/tiling/vectorized loads/fusion**.
