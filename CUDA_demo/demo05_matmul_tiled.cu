@@ -67,8 +67,42 @@ int main()
     dim3 block(TILE, TILE);
     dim3 grid((N + TILE - 1) / TILE, (N + TILE - 1) / TILE);
 
-    matMulTiled<<<grid, block>>>(d_A, d_B, d_C, N);
+    // --- Timing setup (CUDA events measure GPU time) ---
+    cudaEvent_t start, stop;
+    CUDA_CHECK(cudaEventCreate(&start));
+    CUDA_CHECK(cudaEventCreate(&stop));
+
+    // Warm-up (helps avoid first-run overhead affecting timing)
+    matMulTiled << <grid, block >> > (d_A, d_B, d_C, N);
+    CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
+
+    // Timed runs
+    const int iters = 200;  // you can change to 100/500
+    CUDA_CHECK(cudaEventRecord(start));
+
+    for (int i = 0; i < iters; ++i) {
+        matMulTiled << <grid, block >> > (d_A, d_B, d_C, N);
+    }
+    CUDA_CHECK(cudaGetLastError());
+
+    CUDA_CHECK(cudaEventRecord(stop));
+    CUDA_CHECK(cudaEventSynchronize(stop));
+
+    float total_ms = 0.0f;
+    CUDA_CHECK(cudaEventElapsedTime(&total_ms, start, stop));
+    float avg_ms = total_ms / iters;
+
+    // Optional: compute throughput (approx. 2*N^3 FLOPs for GEMM)
+    double flops = 2.0 * (double)N * (double)N * (double)N;
+    double gflops = flops / (avg_ms / 1e3) / 1e9;
+
+    std::cout << "Kernel avg time: " << avg_ms << " ms"
+        << " | Throughput: " << gflops << " GFLOP/s\n";
+
+    CUDA_CHECK(cudaEventDestroy(start));
+    CUDA_CHECK(cudaEventDestroy(stop));
+
 
     CUDA_CHECK(cudaMemcpy(h_C.data(), d_C, bytes, cudaMemcpyDeviceToHost));
 
